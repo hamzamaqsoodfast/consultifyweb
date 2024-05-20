@@ -738,3 +738,22 @@ console.log(username);
         console.error('Error:', error.message);
     }
 });
+app1.get('/getallappointments', async (req, res) => {
+    try {
+        const [appointments] = await pool.execute(`
+            SELECT A.feedback, A.AppointmentID, A.PatientEmail, A.AppointmentDate, A.Status AS AppointmentStatus, A.Notes, A.DriveLink, D.doctor_name, DA.slot, P.PaymentStatus AS PaymentStatus, P.RefundStatus AS RefundStatus
+            FROM Appointments A
+            JOIN Doctors D ON A.DoctorID = D.doctor_id
+            JOIN DoctorAvailability DA ON A.SlotID = DA.id
+            LEFT JOIN Payments P ON A.AppointmentID = P.AppointmentID
+            ORDER BY 
+                CASE WHEN A.Status = 'pending' THEN 0 ELSE 1 END, 
+                A.AppointmentID
+        `);
+console.log(appointments)
+        res.json({ completeddata: appointments });
+    } catch (error) {
+        console.error('Database or server error:', error.message);
+        res.status(500).send('Internal server error');
+    }
+});
