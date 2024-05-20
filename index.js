@@ -651,3 +651,47 @@ app1.get('/changestatus', async (req, res) => {
         }
     }
 });
+app.get('/updateslots', async (req, res) => {
+    const username = req.query.username;
+    const availability = JSON.parse(decodeURIComponent(req.query.availability));
+    console.log(username);
+    console.log(availability);
+
+
+    try {
+        const [doctors] = await pool.query('SELECT doctor_id FROM Doctors WHERE username = ?', [username]);
+        if (doctors.length === 0) {
+            throw new Error('Doctor not found');
+        }
+        const doctorId = doctors[0].doctor_id;
+
+        await pool.query('START TRANSACTION');
+
+        await pool.query('DELETE FROM DoctorAvailability WHERE doctorId = ?', [doctorId]);
+
+        for (const day of availability) {
+            console.log(day.date);
+            for (const slot of day.slots) {
+                const slotTime = `${slot}:00`;
+                await pool.query('INSERT INTO DoctorAvailability (doctorId, dayOfWeek,dayDate, slot, isAvailable, isbooked) VALUES (?, ?, ?, ?, true, false)', [doctorId, day.day, day.date,slotTime]);
+            }
+        }
+
+        await pool.query('COMMIT');
+
+        const response = {
+            successupdated: "Availability updated successfully",
+
+        };
+
+        wss.clients.forEach((client) => {
+            client.send(JSON.stringify(response));
+        });
+
+
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('Failed to update availability', error);
+        res.status(500).json({ message: 'Failed to update availability' });
+    }
+});
