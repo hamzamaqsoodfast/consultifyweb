@@ -1446,3 +1446,35 @@ app1.get('/updatedoctorrating', async (req, res) => {
         res.status(500).send('Internal server error'); // Send HTTP status 500 for internal server errors
     }
 });
+app1.get('/getadminappointmentfeedback', async (req, res) => {
+    // Extracting query parameters from the request
+
+
+    try {
+        // Fetch appointments with doctor's name and slot time from the database matching the patient email
+        const [appointmentRows] = await pool.execute(`
+        SELECT A.rating, A.AppointmentID, A.PatientEmail, A.AppointmentDate, A.Status, A.Notes, A.DriveLink, D.doctor_name, DA.slot
+        FROM Appointments A
+        JOIN Doctors D ON A.DoctorID = D.doctor_id
+        JOIN DoctorAvailability DA ON A.SlotID = DA.id
+        WHERE A.Status = 'completed'
+    `);
+    
+        if (appointmentRows.length === 0) {
+            // No appointments found, send error response
+            const response = { notcompleted: "No Data Found!" };
+            res.json(response);
+            console.log(response);
+
+            return;
+        }
+
+        const response = { completeddata: appointmentRows };
+    //    console.log(response);
+        res.json(response);
+    
+    } catch (error) {
+        console.error('Database or server error:', error.message);
+        res.status(500).send('Internal server error'); // Send HTTP status 500 for internal server errors
+    }
+});
