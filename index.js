@@ -794,6 +794,68 @@ console.log(email);
 
 
         }
+     app1.get('/cancelappointmentdoctor', async (req, res) => {
+    // Extracting query parameters from the request
+    const appointmentId = req.query.appointmentID;
+    console.log(appointmentId);
+
+    let connection;
+    try {
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+        
+        // Start a transaction
+        await connection.beginTransaction();
+
+        // Update the appointment status
+        const [updateResult] = await connection.execute(`
+            UPDATE Appointments
+            SET Status = 'cancelled'
+            WHERE AppointmentID = ? AND Status != 'cancelled'
+        `, [appointmentId]);
+
+        if (updateResult.affectedRows === 0) {
+            const response = { errorcancel: "No such scheduled appointment exists or it is already cancelled." };
+            wss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify(response));
+                }
+            });
+            // Rollback the transaction
+            await connection.rollback();
+        } else {
+            const [updateAvailability] = await connection.execute(`
+                UPDATE DoctorAvailability
+                SET isAvailable = true, isbooked = false
+                WHERE AppointmentID = ?
+            `, [appointmentId]);
+
+            if (updateAvailability.affectedRows > 0) {
+                const response = { canceldone: "Appointment has been cancelled successfully! Our team will inform patient promptly." };
+                wss.clients.forEach(client => {
+                    if (client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify(response));
+                    }
+                });
+            } else {
+                console.error('No matching doctor availability found to update');
+            }
+
+            // Commit the transaction
+            await connection.commit();
+        }
+    } catch (error) {
+        console.error('Database or server error:', error.message);
+        if (connection) {
+            await connection.rollback();
+        }
+        res.status(500).send('Internal server error');
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+});
 
 
     } catch (error) {
