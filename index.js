@@ -478,3 +478,30 @@ console.log(username);
         console.error('Error:', error.message);
     }
 });
+app1.get('/generategemini', async (req, res) => {
+    // Extracting the basic prescription from query parameters
+    const basicPrescription = req.query.doctorbasicprescriptionword;
+    console.log(basicPrescription)
+    if (!basicPrescription) {
+        return res.status(400).send('No prescription provided');
+    }
+
+    try {
+        // Configure the model and prompt for generating content
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const prompt = `Generate a concise prescription based on the following input, focusing strictly on medication information, dosage instructions, and safety advice. Ensure that no personal patient details are included: "${basicPrescription}"`;
+
+        // Generate refined content based on the basic prescription
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const refinedPrescription = response.text();
+        console.log(refinedPrescription);
+        
+        // Send the refined prescription as the response
+        res.json({ refinedPrescription });
+
+    } catch (error) {
+        console.error('Error with the AI generation or server:', error.message);
+        res.status(500).send('Internal server error');
+    }
+});
