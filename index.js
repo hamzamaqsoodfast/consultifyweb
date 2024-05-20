@@ -98,3 +98,104 @@ app.get('/', (req, res) => {
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'scheduleappointment.html'));
 });
+function sendemailtoadmin()
+{
+    
+    const mailOptions = {
+        from: {
+            name: 'Consultify Admin System',
+            address: 'hamzachlove@gmail.com'
+        }, // sender address
+        to: ["l217745@lhr.nu.edu.pk"], // list of receivers
+        subject: "New Appointment Notification", // Subject line
+        html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>New Appointment Notification</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9f9f9;">
+            <table role="presentation" align="center" width="100%" style="max-width: 600px; margin-top: 25px;">
+                <tr>
+                    <td style="background-color: #004aad; padding: 10px; text-align: center;">
+                        <h1 style="margin: 0; font-size: 24px; color: #ffffff;">Appointment Booked!</h1>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="background-color: #ffffff; padding: 20px; text-align: center; border: 1px solid #dddddd;">
+                        <p style="margin: 0; color: #333333; font-size: 16px;">Hello, <strong>Hamza</strong>,</p>
+                        <p style="margin-top: 20px; color: #555555; font-size: 16px;">Please check your admin portal as a customer has booked an appointment!</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="background-color: #004aad; padding: 10px; text-align: center;">
+                        <p style="margin: 0; font-size: 14px; color: #ffffff;">Thank you for using our services!</p>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        ` // HTML body
+    };
+    
+// Send the email
+transporter.sendMail(mailOptions, function(error, info) {
+    if (error) {
+        console.log("Error sending email: ", error);
+    } else {
+        console.log("Email sent: " + info.response);
+    }
+});
+
+}
+
+function sendemailtodoctor(doctoremail)
+{
+    
+    const mailOptions = {
+        from: {
+            name: 'Consultify Admin System',
+            address: 'hamzachlove@gmail.com'
+        }, // sender address
+        to: [doctoremail], // list of receivers
+        subject: "New Appointment Notification", // Subject line
+        html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>New Appointment Notification</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9f9f9;">
+            <table role="presentation" align="center" width="100%" style="max-width: 600px; margin-top: 25px;">
+                <tr>
+                    <td style="background-color: #004aad; padding: 10px; text-align: center;">
+                        <h1 style="margin: 0; font-size: 24px; color: #ffffff;">Appointment Booked!</h1>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="background-color: #ffffff; padding: 20px; text-align: center; border: 1px solid #dddddd;">
+                        <p style="margin: 0; color: #333333; font-size: 16px;">Hello, <strong>Doctor</strong>,</p>
+                        <p style="margin-top: 20px; color: #555555; font-size: 16px;">Please check your Doctor portal as a patient has booked an appointment!</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="background-color: #004aad; padding: 10px; text-align: center;">
+                        <p style="margin: 0; font-size: 14px; color: #ffffff;">Thank you for using our services!</p>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        ` // HTML body
+    };
+    
+// Send the email
+transporter.sendMail(mailOptions, function(error, info) {
+    if (error) {
+        console.log("Error sending email: ", error);
+    } else {
+        console.log("Email sent: " + info.response);
+    }
+});
+
+}
