@@ -582,3 +582,72 @@ app1.get('/getrespecteddoctorfeeback', async (req, res) => {
         res.status(500).send('Internal server error'); // Send HTTP status 500 for internal server errors
     }
 });
+
+app1.get('/changestatus', async (req, res) => {
+    // Extracting query parameters from the request
+    const appointmentId = req.query.appointmentId;
+    const status = req.query.status;
+    const updatedstatus = status.toLowerCase(); // Ensure status is in lower case
+
+    let connection;
+    try {
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+        // Start a transaction
+        await connection.beginTransaction();
+
+        // Update the status of the appointment in the Appointments table
+        const [updateResult] = await connection.execute(`
+            UPDATE Appointments
+            SET Status = ?
+            WHERE AppointmentID = ?
+        `, [updatedstatus, appointmentId]);
+
+        if (updatedstatus === 'cancelled' && updateResult.affectedRows > 0) {
+            // Free up the doctor's timeslot if the appointment was successfully cancelled
+            await connection.execute(`
+                UPDATE DoctorAvailability
+                SET isAvailable = true, isbooked = false
+                WHERE AppointmentID = ?
+            `, [appointmentId]);
+        }
+
+      else  if (updatedstatus === 'scehduled' && updateResult.affectedRows > 0) {
+            // Free up the doctor's timeslot if the appointment was successfully cancelled
+            await connection.execute(`
+                UPDATE DoctorAvailability
+                SET isAvailable = false, isbooked = true
+                WHERE AppointmentID = ?
+            `, [appointmentId]);
+        }
+        // Fetch and sort appointments after updating status
+        const [appointments] = await connection.execute(`
+            SELECT * FROM Appointments 
+            ORDER BY 
+                CASE WHEN LOWER(Status) = 'pending' THEN 0 ELSE 1 END, 
+                AppointmentID
+        `);
+
+        const response = {
+            successstatus: "Status updated successfully.",
+            data: appointments
+        };
+        console.log(response);
+        res.json(response);
+
+        // Commit the transaction
+        await connection.commit();
+    } catch (error) {
+        console.error('Database or server error:', error.message);
+        // Rollback transaction if error occurs
+        if (connection) {
+            await connection.rollback();
+        }
+        res.status(500).send('Internal server error');
+    } finally {
+        // Release the connection back to the pool
+        if (connection) {
+            connection.release();
+        }
+    }
+});
