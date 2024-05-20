@@ -505,3 +505,26 @@ app1.get('/generategemini', async (req, res) => {
         res.status(500).send('Internal server error');
     }
 });
+app1.get('/saveprescription', async (req, res) => {
+    // Extracting query parameters from the request
+    const appointmentID = req.query.appointmentID;
+    
+    const description = req.query.description;
+
+    try {
+        // Update the refund status of the payment in the Payments table
+        await pool.execute(`
+            UPDATE Appointments 
+            SET feedback = ?
+            WHERE AppointmentID = ?
+        `, [description, appointmentID]);
+
+         let successstatusprescription="Prescription Updated Successfully!";
+        res.json({ successstatusprescription });
+
+
+    } catch (error) {
+        console.error('Database or server error:', error.message);
+        res.status(500).send('Internal server error'); // Send HTTP status 500 for internal server errors
+    }
+});
