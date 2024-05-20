@@ -1472,6 +1472,38 @@ app1.get('/getadminappointmentfeedback', async (req, res) => {
         const response = { completeddata: appointmentRows };
     //    console.log(response);
         res.json(response);
+
+     app1.get('/checkappointmentdetails', async (req, res) => {
+    // Extracting query parameters from the request
+    const appointmentID = req.query.appointmentID;
+    console.log(appointmentID);
+
+    try {
+        // Fetch appointments with doctor's name and slot time from the database matching the patient email
+        const [appointmentRows] = await pool.execute(`
+            SELECT A.feedback,A.AppointmentID,A.PatientEmail, A.AppointmentDate, A.Status, A.Notes, A.DriveLink, D.doctor_name, DA.slot
+            FROM Appointments A
+            JOIN Doctors D ON A.DoctorID = D.doctor_id
+            JOIN DoctorAvailability DA ON A.SlotID = DA.id
+            WHERE A.AppointmentID = ?
+        `, [appointmentID]);
+
+        if (appointmentRows.length === 0) {
+            // No appointments found, send error response
+            const response = { appointmentnotfounderror: "No Data Found!" };
+            res.json(response);
+
+            return;
+        }
+
+        const response = { appointment: appointmentRows };
+        res.json(response);
+    
+    } catch (error) {
+        console.error('Database or server error:', error.message);
+        res.status(500).send('Internal server error'); // Send HTTP status 500 for internal server errors
+    }
+});
     
     } catch (error) {
         console.error('Database or server error:', error.message);
