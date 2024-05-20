@@ -1519,7 +1519,26 @@ async function senddoctordatatoclient(ws) {
             doctorsdata: rows,
 
         };
+async function senddoctorcount(ws) {
+    try {
+ 
+  
+      // Fetch the count of rows from the Customer table
+      const [countRows] = await pool.execute('SELECT COUNT(*) AS rowCount FROM Doctors');
+  
+      // Extract the count value from the result
+      const rowCount = countRows[0].rowCount;
+  
+      // Prepare the response object with the count of rows
+      const response = {
+        totaldoctors: rowCount,
+      };
 
+      ws.send(JSON.stringify(response));
+    } catch (error) {
+      console.error('Error fetching data from the database:', error);
+    }
+  }
 
         ws.send(JSON.stringify(response));
     } catch (error) {
