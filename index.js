@@ -695,3 +695,46 @@ app.get('/updateslots', async (req, res) => {
         res.status(500).json({ message: 'Failed to update availability' });
     }
 });
+app1.get('/checkexist', async (req, res) => {
+
+    try {
+        const username = req.query.username; // Access the text1 query parameter sent from the client
+console.log(username);
+  
+        // Compare the hashed password in the database
+        const [rows] = await pool.execute(
+            'SELECT * FROM Doctors WHERE username = ?',
+            [username] // Directly use the user-provided password
+        );
+
+        if (rows.length > 0) {
+          
+            const response = {
+               dataprofile:rows
+            };
+            console.log(response);
+
+            wss.clients.forEach((client) => {
+                client.send(JSON.stringify(response));
+            });
+
+
+        }
+        else {
+            let loginstatus = "doctornotexists";
+            const response = {
+                loginstatus: loginstatus,
+            };
+            wss.clients.forEach((client) => {
+                client.send(JSON.stringify(response));
+            });
+             console.log(response);
+
+
+        }
+
+
+    } catch (error) {
+        console.error('Error:', error.message);
+    }
+});
