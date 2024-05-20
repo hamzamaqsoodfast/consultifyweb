@@ -1092,3 +1092,133 @@ app1.get('/cancelappointmentdoctor', async (req, res) => {
         }
     }
 });
+app1.get('/getallpayments', async (req, res) => {
+    try {
+        console.log(5);
+        const [payments] = await pool.execute(`
+        SELECT P.PaymentID, P.AppointmentID, P.PatientEmail, P.Amount, P.Method, P.TransactionID, P.PaymentStatus, P.DateOfPayment, P.RefundStatus
+        FROM Payments P
+        ORDER BY P.DateOfPayment DESC, 
+                 CASE WHEN P.PaymentStatus = 'pending' THEN 0 ELSE 1 END
+        
+        `);
+        console.log(payments);
+
+        res.json({completeddata: payments});
+    } catch (error) {
+        console.error('Database or server error:', error.message);
+        res.status(500).send('Internal server error');
+    }
+});
+app1.get('/refundstatus', async (req, res) => {
+    // Extracting query parameters from the request
+    const paymentid = req.query.paymentid;
+    const status = req.query.status;
+    const updatedstatus = status.toLowerCase(); // Ensure status is in lower case
+
+    try {
+        // Update the refund status of the payment in the Payments table
+        await pool.execute(`
+            UPDATE Payments 
+            SET RefundStatus = ?
+            WHERE PaymentID = ?
+        `, [updatedstatus, paymentid]);
+
+        const response = {
+            successstatus: "Refund status updated successfully."
+        };
+        console.log(response);
+
+        res.json(response);
+    } catch (error) {
+        console.error('Database or server error:', error.message);
+        res.status(500).send('Internal server error'); // Send HTTP status 500 for internal server errors
+    }
+});
+app1.get('/changepaymentstatus', async (req, res) => {
+    // Extracting query parameters from the request
+    const paymentid = req.query.paymentid;
+    const status = req.query.status;
+    const updatedstatus = status.toLowerCase(); // Ensure status is in lower case
+
+    try {
+        // Update the status of the payment in the Payments table
+        await pool.execute(`
+            UPDATE Payments 
+            SET PaymentStatus = ?
+            WHERE PaymentID = ?
+        `, [updatedstatus, paymentid]);
+
+        const response = {
+            successstatus: "Payment status updated successfully."
+        };
+        console.log(response);
+
+        (response);
+    } catch (error) {
+        console.error('Database or server error:', error.message);
+        res.status(500).send('Internal server error'); // Send HTTP status 500 for internal server errors
+    }
+});
+app1.get('/cancelappointmentdoctor', async (req, res) => {
+    // Extracting query parameters from the request
+    const appointmentId = req.query.appointmentID;
+    console.log(appointmentId);
+
+    let connection;
+    try {
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+        
+        // Start a transaction
+        await connection.beginTransaction();
+
+        // Update the appointment status
+        const [updateResult] = await connection.execute(`
+            UPDATE Appointments
+            SET Status = 'cancelled'
+            WHERE AppointmentID = ? AND Status != 'cancelled'
+        `, [appointmentId]);
+
+        if (updateResult.affectedRows === 0) {
+            const response = { errorcancel: "No such scheduled appointment exists or it is already cancelled." };
+            wss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify(response));
+                }
+            });
+            // Rollback the transaction
+            await connection.rollback();
+        } else {
+            const [updateAvailability] = await connection.execute(`
+                UPDATE DoctorAvailability
+                SET isAvailable = true, isbooked = false
+                WHERE AppointmentID = ?
+            `, [appointmentId]);
+
+            if (updateAvailability.affectedRows > 0) {
+                const response = { canceldone: "Appointment has been cancelled successfully! Our team will inform patient promptly." };
+                wss.clients.forEach(client => {
+                    if (client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify(response));
+                    }
+                });
+            } else {
+                console.error('No matching doctor availability found to update');
+            }
+
+            // Commit the transaction
+            await connection.commit();
+        }
+    } catch (error) {
+        console.error('Database or server error:', error.message);
+        if (connection) {
+            await connection.rollback();
+        }
+        res.status(500).send('Internal server error');
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+});
