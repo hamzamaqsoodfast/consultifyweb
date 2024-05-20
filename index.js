@@ -528,3 +528,57 @@ app1.get('/saveprescription', async (req, res) => {
         res.status(500).send('Internal server error'); // Send HTTP status 500 for internal server errors
     }
 });
+app1.get('/getrespecteddoctorfeeback', async (req, res) => {
+    // Extracting query parameters from the request
+    const doctorName = req.query.doctorName;
+   console.log('hi',doctorName);
+    // Check if the doctorName is undefined or an empty string
+    if (!doctorName) {
+        res.status(400).json({ error: "Doctor name is required and must not be empty." });
+        return;
+    }
+
+    try {
+        // Fetch doctor ID using the doctor's name from the Doctors table
+        const [doctorRows] = await pool.execute(`
+            SELECT doctor_id FROM Doctors WHERE username = ?
+        `, [doctorName]);
+     console.log(doctorRows);
+        // Check if a doctor was found
+        if (doctorRows.length === 0) {
+            res.status(404).json({ error: "Doctor not found!" });
+            return;
+        }
+
+        // Assuming doctorRows contains only one doctor with the provided name
+        const doctorId = doctorRows[0].doctor_id;
+        console.log('doc: ',doctorId)
+        // Fetch appointments with the doctor's ID
+        const [appointmentRows] = await pool.execute(`
+            SELECT A.AppointmentID, A.PatientEmail, A.AppointmentDate, A.Status, A.Notes, A.DriveLink, D.doctor_name, DA.slot
+            FROM Appointments A
+            JOIN Doctors D ON A.DoctorID = D.doctor_id
+            JOIN DoctorAvailability DA ON A.SlotID = DA.id
+            WHERE A.DoctorID = ?
+        `, [doctorId]);
+
+        // Handle case where no appointments are found
+        if (appointmentRows.length === 0) {
+            res.json({ error: "No appointments found for the selected doctor." });
+            return;
+        }
+     console.log(appointmentRows);
+        // Send the appointments data as JSON
+        res.json({ appointmentRows });
+
+        // Optionally, send the appointments to WebSocket clients
+        wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({ appointmentRows }));
+            }
+        }); 
+    } catch (error) {
+        console.error('Database or server error:', error.message);
+        res.status(500).send('Internal server error'); // Send HTTP status 500 for internal server errors
+    }
+});
