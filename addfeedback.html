@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Appointment Ratings</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+        }
+
+        .header {
+            background: linear-gradient(90deg, rgba(106, 17, 203, 1) 0%, rgba(37, 117, 252, 1) 100%);
+            color: white;
+            padding: 10px 0;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            padding: 10px;
+            font-size: 28px;
+        }
+
+        .table-container {
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .table thead {
+            background-color: #673ab7;
+            color: white;
+        }
+
+        .table th,
+        .table td {
+            vertical-align: middle;
+        }
+
+        .btn-primary {
+            background-color: #673ab7;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background-color: #5e35b1;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Feedback Checking System</h1>
+    </div>
+
+    <div class="container mt-5">
+        <div class="table-container">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>AppointmentID</th>
+                        <th>Patient Email</th>
+                        <th>Time</th>
+                        <th>Appointment Date</th>
+                        <th>Status</th>
+                        <th>Notes</th>
+                        <th>Drive Link</th>
+                        <th>Doctor Name</th>
+                        <th>Give Feedback</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Google_Gemini_logo.svg/2560px-Google_Gemini_logo.svg.png"
+                        alt="Gemini Pro Logo" style="height: 40px;">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="appointmentId">
+                    <label for="prescription">Prescription:</label>
+                    <textarea id="prescription" class="form-control" rows="4"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="generateWithGemini()">Generate with Gemini
+                        Pro</button>
+                    <button type="button" class="btn btn-primary" onclick="postPrescription()">Post the
+                        Prescription</button>
+                </div>
+                <p style="color: #673ab7; padding: 20px; font-weight: bold; font-size: 18px;" id="successpre"></p>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js"></script>
+    <script>
+
+        const username=localStorage.getItem('username');
+        if(username=='' || username==null)
+        {
+            window.location.replace("http://127.0.0.1:5500/logindoc.html");
+
+        }
+        function fetchData() {
+            const username=localStorage.getItem('username');
+            const url = `http://localhost:3003/getrespecteddoctorfeeback?doctorName=${username}`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.querySelector('tbody');
+
+                    if (data.appointmentRows.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="9">No Data Found!</td></tr>';
+                    } else {
+                        data.appointmentRows.forEach(appointment => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${appointment.AppointmentID}</td>
+                                <td>${appointment.PatientEmail}</td>
+                                <td>${appointment.slot}</td>
+                                <td>${new Date(appointment.AppointmentDate).toLocaleDateString()}</td>
+                                <td>${appointment.Status}</td>
+                                <td>${appointment.Notes}</td>
+                                <td><a href="${appointment.DriveLink}">Link</a></td>
+                                <td>${appointment.doctor_name}</td>
+                                <td><button class="btn btn-primary" onclick="openFeedbackModal(${appointment.AppointmentID})">Give Feedback</button></td>
+                            `;
+                            tableBody.appendChild(row);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+        }
+
+        function openFeedbackModal(appointmentId) {
+            document.getElementById('successpre').innerText = '';
+
+            const modal = new bootstrap.Modal(document.getElementById('feedbackModal'));
+            document.getElementById('appointmentId').value = appointmentId;
+            modal.show();
+        }
+
+        function generateWithGemini() {
+            var prompttext = document.getElementById('prescription').value;
+            if (prompttext === '') {
+                alert('Please write few words for prompt hint!')
+            }
+            else {
+                const url = `http://localhost:3003/generategemini?doctorbasicprescriptionword=${prompttext}`;
+
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log(data);
+                        document.getElementById('prescription').value = '';
+                        document.getElementById('prescription').value = data.refinedPrescription;
+
+                    })
+                    .catch(error => {
+                        console.error('Fetch Error:', error);
+                    });
+
+
+            }
+        }
+
+        function postPrescription() {
+
+            var appointmentID = document.getElementById('appointmentId').value;
+            var description=document.getElementById('prescription').value;
+            const url = `http://localhost:3003/saveprescription?appointmentID=${appointmentID}&description=${description}`;
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(data);
+                    document.getElementById('successpre').innerText = data.successstatusprescription;
+
+                })
+                .catch(error => {
+                    console.error('Fetch Error:', error);
+                });
+        }
+
+        fetchData();
+    </script>
+</body>
+
+</html>
