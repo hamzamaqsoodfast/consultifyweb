@@ -1510,3 +1510,19 @@ app1.get('/getadminappointmentfeedback', async (req, res) => {
         res.status(500).send('Internal server error'); // Send HTTP status 500 for internal server errors
     }
 });
+async function senddoctordatatoclient(ws) {
+    try {
+      
+
+        const [rows] = await pool.execute('SELECT * FROM Doctors');
+        const response = {
+            doctorsdata: rows,
+
+        };
+
+
+        ws.send(JSON.stringify(response));
+    } catch (error) {
+        console.error('Error fetching data from the database:', error);
+    }
+}
