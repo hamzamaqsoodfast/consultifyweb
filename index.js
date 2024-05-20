@@ -1,7 +1,7 @@
 const { OpenAI } = require("openai");
 // Replace 'YOUR_API_KEY' with your actual Gemini API key
 const { GoogleGenerativeAI } = require("@google/generative-ai");
- process.env.GOOGLE_GENAI_KEY="AIzaSyCyKGZcs5MYwfGiNcKzFQPo2t3rb3g13q8";
+ process.env.GOOGLE_GENAI_KEY="your google gemini api key";
  var { Builder, By, until, Key } = require('selenium-webdriver');
  var driver;
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENAI_KEY);
@@ -10,7 +10,7 @@ const mysql = require('mysql2/promise');
 const pool = mysql.createPool({
     host: 'localhost',
     user: 'root',
-    password: 'hamzamaqsood@lhr786',
+    password: 'yourmysqlpassword',
     database: 'consultify',
     waitForConnections: true,
     connectionLimit: 15,
@@ -26,8 +26,8 @@ var transporter = nodemailer.createTransport({
     port: 587,
     secure: false, // true for 465, false for other ports
     auth: {
-        user: 'hamzachlove@gmail.com', // Sender gmail address
-        pass: 'wndxkxlgxcdevzet' // App password from Gmail account
+        user: 'youremail', // Sender gmail address
+        pass: 'yourpasskey' // App password from Gmail account
     },
 });
 
@@ -104,9 +104,9 @@ function sendemailtoadmin()
     const mailOptions = {
         from: {
             name: 'Consultify Admin System',
-            address: 'hamzachlove@gmail.com'
+            address: 'your sender email account'
         }, // sender address
-        to: ["l217745@lhr.nu.edu.pk"], // list of receivers
+        to: ["receiver email account"], // list of receivers
         subject: "New Appointment Notification", // Subject line
         html: `
         <!DOCTYPE html>
@@ -155,7 +155,7 @@ function sendemailtodoctor(doctoremail)
     const mailOptions = {
         from: {
             name: 'Consultify Admin System',
-            address: 'hamzachlove@gmail.com'
+            address: 'sender email account'
         }, // sender address
         to: [doctoremail], // list of receivers
         subject: "New Appointment Notification", // Subject line
@@ -1545,3 +1545,552 @@ async function senddoctorcount(ws) {
         console.error('Error fetching data from the database:', error);
     }
 }
+  wss.on('connection', (ws) => {
+    senddoctorcount(ws);
+  });
+wss.on('connection', (ws) => {
+    senddoctordatatoclient(ws);
+
+});
+
+async function totalappointments(ws) {
+    try {
+ 
+  
+      // Fetch the count of rows from the Customer table
+      const [countRows] = await pool.execute('SELECT COUNT(*) AS rowCount FROM Appointments');
+  
+      // Extract the count value from the result
+      const rowCount = countRows[0].rowCount;
+  
+      // Prepare the response object with the count of rows
+      const response = {
+        totalappointments: rowCount,
+      };
+
+      ws.send(JSON.stringify(response));
+    } catch (error) {
+      console.error('Error fetching data from the database:', error);
+    }
+  }
+  
+  wss.on('connection', (ws) => {
+    totalappointments(ws);
+  });
+  async function totalpatients(ws) {
+    try {
+ 
+  
+      // Fetch the count of rows from the Customer table
+      const [countRows] = await pool.execute('SELECT COUNT(*) AS rowCount FROM Patients');
+  
+      // Extract the count value from the result
+      const rowCount = countRows[0].rowCount;
+  
+      // Prepare the response object with the count of rows
+      const response = {
+        patientcount: rowCount,
+      };
+
+      ws.send(JSON.stringify(response));
+    } catch (error) {
+      console.error('Error fetching data from the database:', error);
+    }
+  }
+  
+  wss.on('connection', (ws) => {
+    totalpatients(ws);
+  });
+
+  app.get('/open-whatsapp3', async (req, res) => {    // Send the array to the client
+    const rowData = [];
+  
+    
+    try {
+  
+      const text = req.query.text; // Access the text1 query parameter sent from the client
+     let msg=JSON.parse(req.query.text1);
+     console.log(msg);
+  
+  
+      const lowerlimit = parseInt(req.query.text2);
+   const upperlimit = parseInt(req.query.text3);
+   const excelsheet=req.query.text4;
+   const mediapath=req.query.text5;
+  //console.log(totalNumbers);
+  const numbersArray = text.split(',').map(number => number.trim());
+  const totalNumbers = numbersArray.length;
+  const dataToSend = { totalNumbers }; // Wrap the text in an object or array
+  // console.log(dataToSend);
+  
+   // Send the data to the connected clients via WebSocket
+   wss.clients.forEach((client) => {
+     client.send(JSON.stringify(dataToSend));
+   });
+  
+    //  // Send the array to the client
+    //  const { Builder, By, Key, until } = require('selenium-webdriver');
+    //  const chrome = require('selenium-webdriver/chrome');
+     
+    //    // Set up Chrome options to run in incognito mode
+    //    const options = new chrome.Options().addArguments('--incognito');
+  
+    //    // Create a new instance of the WebDriver
+    //     driver = await new Builder().forBrowser('chrome').setChromeOptions(options).build();
+   
+        
+   var baseUrl = 'https://web.whatsapp.com/send?phone=';
+   let msg1=msg;
+  
+   if(mediapath!='' &&msg=='' && excelsheet=='')
+   {
+   
+   for (const phoneNumber of numbersArray) {
+  
+     const url = baseUrl + phoneNumber;
+     await driver.get(url);
+     const buttonWait = driver.wait(until.elementLocated(By.xpath("//*[@id=\"app\"]/div/span[2]/div/span/div/div/div/div/div/div[2]/div/button"), 200000));
+     const headerWait = driver.wait(until.elementLocated(By.xpath("//*[@id=\"main\"]/header/div[2]/div[1]/div/div/span"), 200000));
+   
+     try {
+       let element = await Promise.race([buttonWait, headerWait]);
+     // await element.click();
+       let value = await element.getText();
+   
+       if (value === "OK") {
+  await element.click();   
+  const inc1=phoneNumber;
+  const dataToSendq = { inc1 }; // Wrap the text in an object or array
+  
+  wss.clients.forEach((client) => {
+    client.send(JSON.stringify(dataToSendq));
+  });     
+       } else {
+     
+     
+         const localImagePath = mediapath;
+         if (!fs.existsSync(localImagePath)) {
+          console.log("The local image file does not exist. Please provide a valid path");
+         }
+         else{
+         await driver.manage().setTimeouts({ implicit: 2000 });
+         const attach= driver.findElement(By.xpath("//div[@title='Attach']"));
+         await attach.click();
+         await sleep(1000);
+         const inputField = driver.findElement(By.xpath("//input[@accept='image/*,video/mp4,video/3gpp,video/quicktime']"));
+         await inputField.sendKeys(localImagePath);
+       
+  
+       const cf1= driver.findElement(By.xpath("//span[@data-icon = 'send']"));
+       await cf1.click();
+       await sleep(1000);
+  
+         const randomNumber = Math.floor(Math.random() * (upperlimit - lowerlimit + 1)) + lowerlimit;
+         const timee=(randomNumber*1000);
+         await sleep(timee);
+  
+  
+   const inc=phoneNumber;
+   const dataToSendq = { inc }; // Wrap the text in an object or array
+   //console.log(dataToSendq);
+  
+   // Send the data to the connected clients via WebSocket
+   wss.clients.forEach((client) => {
+     client.send(JSON.stringify(dataToSendq));
+   });
+         }
+   
+  
+         
+  }
+      
+     } catch (NoSuchElementException) {
+      // console.log("Neither button nor header found");
+     }
+  
+   }
+  
+  // await driver.quit();
+   }
+   else if(mediapath!='' && msg!='' &&excelsheet!='')
+   {
+  
+  let num=1;
+  const filename = `Excel/${excelsheet}`;
+  
+  const workbook = XLSX.readFile(filename);
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  
+  // Filter out empty rows
+  const filteredData = jsonData.filter(row => Object.values(row).some(cell => cell !== ''));
+  const extractedText = extractTextInCurlyBrackets(msg);
+  
+   for (const phoneNumber of numbersArray) {
+    for (let i = 0; i < extractedText.length; i++) {
+      const keyword = extractedText[i];
+  
+      for (let j = 0; j < filteredData[0].length; j++) {
+        const columnHeader = filteredData[0][j];
+  //console.log(columnHeader);
+        if (keyword === columnHeader) {
+          const columnData = filteredData[num][j];
+          msg = msg.replace(new RegExp(`{${keyword}}`, 'g'), columnData);
+          
+        }
+      }
+    }
+    const url = baseUrl + phoneNumber;
+    await driver.get(url);
+    const buttonWait = driver.wait(until.elementLocated(By.xpath("//*[@id=\"app\"]/div/span[2]/div/span/div/div/div/div/div/div[2]/div/button"), 200000));
+    const headerWait = driver.wait(until.elementLocated(By.xpath("//*[@id=\"main\"]/header/div[2]/div[1]/div/div/span"), 200000));
+  
+    try {
+      let element = await Promise.race([buttonWait, headerWait]);
+    // await element.click();
+      let value = await element.getText();
+  
+      if (value === "OK") {
+  await element.click();  
+  num++;     
+  msg=msg1;
+  
+  const inc1=phoneNumber;
+  const dataToSendq = { inc1 }; // Wrap the text in an object or array
+  //   console.log(dataToSendq);
+  
+  // Send the data to the connected clients via WebSocket
+  wss.clients.forEach((client) => {
+    client.send(JSON.stringify(dataToSendq));
+  });     
+      } else {
+     
+        const localImagePath = mediapath;
+        if (!fs.existsSync(localImagePath)) {
+          console.log("The local image file does not exist. Please provide a valid path");
+         }
+         else{
+        await driver.manage().setTimeouts({ implicit: 2000 });
+        const attach= driver.findElement(By.xpath("//div[@title='Attach']"));
+        await attach.click();
+        await  driver.findElement(By.xpath("//input[@accept='image/*,video/mp4,video/3gpp,video/quicktime']")).sendKeys(localImagePath);
+   
+       const cf1= await driver.wait(until.elementLocated(By.xpath("//span[@data-icon = 'send']")), 15000);
+  
+       await cf1.click();
+        const inputField = await driver.wait(until.elementLocated(By.css("div[title='Type a message'] p.selectable-text.copyable-text.iq0m558w.g0rxnol2")), 15000);
+  
+         const lines = msg.split("\n");
+       const preparedMessage = lines.join(Key.chord(Key.SHIFT, Key.ENTER));
+       
+       await inputField.sendKeys(preparedMessage, Key.ENTER);
+        const randomNumber = Math.floor(Math.random() * (upperlimit - lowerlimit + 1)) + lowerlimit;
+        const timee=(randomNumber*1000);
+        await sleep(timee);  
+    
+      
+  
+        
+  
+     
+  const inc=phoneNumber;
+  const dataToSendq = { inc }; // Wrap the text in an object or array
+  //console.log(dataToSendq);
+  
+  // Send the data to the connected clients via WebSocket
+  wss.clients.forEach((client) => {
+    client.send(JSON.stringify(dataToSendq));
+  });
+  num++;
+       
+       // driver.findElement(By.xpath("//div[@class='_3Uu1_']//div[@data-testid='conversation-compose-box-input']")).sendKeys(msg);
+  
+  msg=msg1;
+  
+  
+        
+  }
+  }
+    } catch (NoSuchElementException) {
+    //  console.log("Neither button nor header found");
+    }
+  
+  }
+  
+  //await driver.quit();
+   }
+   else if(mediapath=='' && msg!='' &&excelsheet!='')
+   {
+  let num=1;
+  
+  const filename = `Excel/${excelsheet}`;
+  
+  const workbook = XLSX.readFile(filename);
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  
+  // Filter out empty rows
+  const filteredData = jsonData.filter(row => Object.values(row).some(cell => cell !== ''));
+  const extractedText = extractTextInCurlyBrackets(msg);
+  
+   for (const phoneNumber of numbersArray) {
+    for (let i = 0; i < extractedText.length; i++) {
+      const keyword = extractedText[i];
+  
+      for (let j = 0; j < filteredData[0].length; j++) {
+        const columnHeader = filteredData[0][j];
+  
+        if (keyword === columnHeader) {
+          const columnData = filteredData[num][j];
+          
+          msg = msg.replace(new RegExp(`{${keyword}}`, 'g'), columnData);
+          
+        }
+      }
+    }
+  
+  //console.log(msg);
+    const url = baseUrl  + phoneNumber;
+    await driver.get(url);
+    const buttonWait = driver.wait(until.elementLocated(By.xpath("//*[@id=\"app\"]/div/span[2]/div/span/div/div/div/div/div/div[2]/div/button"), 200000));
+    const headerWait = driver.wait(until.elementLocated(By.xpath("//*[@id=\"main\"]/header/div[2]/div[1]/div/div/span"), 200000));
+    try {
+      let element = await Promise.race([buttonWait, headerWait]);
+    // await element.click();
+      let value = await element.getText();
+  
+      if (value === "OK") {
+        num=num+1;
+        msg=msg1;
+  
+      //  console.log(num);
+  await element.click();       
+  const inc1=phoneNumber;
+  const dataToSendq = { inc1 }; // Wrap the text in an object or array
+  //   console.log(dataToSendq);
+  
+  // Send the data to the connected clients via WebSocket
+  wss.clients.forEach((client) => {
+    client.send(JSON.stringify(dataToSendq));
+  });     
+      } else {
+     
+      
+        await sleep(1000);
+        const inputField = await driver.wait(until.elementLocated(By.css("div[title='Type a message'] p.selectable-text.copyable-text.iq0m558w.g0rxnol2")), 15000);
+        const lines = msg.split("\n");
+      const preparedMessage = lines.join(Key.chord(Key.SHIFT, Key.ENTER));
+      
+      await inputField.sendKeys(preparedMessage, Key.ENTER);
+      
+  
+  
+        await sleep(1000);
+     
+  const inc=phoneNumber;
+  const dataToSendq = { inc }; // Wrap the text in an object or array
+  //console.log(dataToSendq);
+  num++;
+       
+  msg=msg1;
+  // Send the data to the connected clients via WebSocket
+  wss.clients.forEach((client) => {
+    client.send(JSON.stringify(dataToSendq));
+  });
+  
+  const randomNumber = Math.floor(Math.random() * (upperlimit - lowerlimit + 1)) + lowerlimit;
+  const timee=(randomNumber*1000);
+  //console.log(timee);
+  await sleep(timee);
+   
+  
+        
+  }
+     
+    } catch (NoSuchElementException) {
+   //   console.log("Neither button nor header found");
+    }
+  
+  }
+  
+  //await driver.quit();
+   }
+   else if(mediapath!='' && msg!='' &&excelsheet=='')
+   {
+  // Example usage
+  
+   for (const phoneNumber of numbersArray) {
+    
+    const url = baseUrl + phoneNumber;
+    await driver.get(url);
+    const buttonWait = driver.wait(until.elementLocated(By.xpath("//*[@id=\"app\"]/div/span[2]/div/span/div/div/div/div/div/div[2]/div/button"), 200000));
+    const headerWait = driver.wait(until.elementLocated(By.xpath("//*[@id=\"main\"]/header/div[2]/div[1]/div/div/span"), 200000));
+  
+    try {
+      let element = await Promise.race([buttonWait, headerWait]);
+    // await element.click();
+      let value = await element.getText();
+  
+      if (value === "OK") {
+  await element.click();  
+  const inc1=phoneNumber;
+  const dataToSendq = { inc1 }; // Wrap the text in an object or array
+  //   console.log(dataToSendq);
+  
+  // Send the data to the connected clients via WebSocket
+  wss.clients.forEach((client) => {
+    client.send(JSON.stringify(dataToSendq));
+  });          
+      } else {
+     
+        const localImagePath = mediapath;
+        if (!fs.existsSync(localImagePath)) {
+          console.log("The local image file does not exist. Please provide a valid path");
+         }
+         else{
+        await driver.manage().setTimeouts({ implicit: 2000 });
+        const inputField = await driver.wait(until.elementLocated(By.css("div[title='Type a message'] p.selectable-text.copyable-text.iq0m558w.g0rxnol2")), 15000);
+  
+        const lines = msg.split("\n");
+        await sleep(2000);
+        const preparedMessage = lines.join(Key.chord(Key.SHIFT, Key.ENTER));
+        
+  await inputField.sendKeys(preparedMessage, Key.ENTER);
+  await sleep(1500);
+        const attach= driver.findElement(By.xpath("//div[@title='Attach']"));
+        await attach.click();
+        await  driver.findElement(By.xpath("//input[@accept='image/*,video/mp4,video/3gpp,video/quicktime']")).sendKeys(localImagePath);
+   
+       const cf1= await driver.wait(until.elementLocated(By.xpath("//span[@data-icon = 'send']")), 15000);
+  
+       await cf1.click();
+     
+        const randomNumber = Math.floor(Math.random() * (upperlimit - lowerlimit + 1)) + lowerlimit;
+        const timee=(randomNumber*1000);
+        await sleep(timee);  
+    
+      
+     
+  const inc=phoneNumber;
+  const dataToSendq = { inc }; // Wrap the text in an object or array
+  //console.log(dataToSendq);
+  
+  // Send the data to the connected clients via WebSocket
+  wss.clients.forEach((client) => {
+    client.send(JSON.stringify(dataToSendq));
+  });
+  
+         }
+  
+        
+  }
+     
+    } catch (NoSuchElementException) {
+    //  console.log("Neither button nor header found");
+    }
+  
+  }
+  
+  //await driver.quit();
+   }
+  else if(mediapath=='' && excelsheet=='' && msg!='')
+  {
+    for (const phoneNumber of numbersArray) {
+    
+      const url = baseUrl + phoneNumber;
+      await driver.get(url);
+      const buttonWait = driver.wait(until.elementLocated(By.xpath("//*[@id=\"app\"]/div/span[2]/div/span/div/div/div/div/div/div[2]/div/button"), 200000));
+      const headerWait = driver.wait(until.elementLocated(By.xpath("//*[@id=\"main\"]/header/div[2]/div[1]/div/div/span"), 200000));
+      
+      console.log(headerWait.getText());
+      try {
+        let element = await Promise.race([buttonWait, headerWait]);
+      // await element.click();
+        let value = await element.getText();
+       console.log(value);
+        if (value === "OK") {
+          
+    await element.click();   
+    const inc1=phoneNumber;
+    const dataToSendq = { inc1 }; // Wrap the text in an object or array
+  //   console.log(dataToSendq);
+  
+    // Send the data to the connected clients via WebSocket
+    wss.clients.forEach((client) => {
+      client.send(JSON.stringify(dataToSendq));
+    });    
+        } else {
+       
+        
+       
+       
+          
+          try{
+            const inputField = await driver.wait(until.elementLocated(By.xpath("//div[@title='Type a message'][@role='textbox']")), 15000);
+  
+            const lines = msg.split("\n");
+          
+            const preparedMessage = lines.join(Key.chord(Key.SHIFT, Key.ENTER));
+            
+   await inputField.sendKeys(preparedMessage, Key.ENTER);
+   
+  
+          
+       
+    const inc=phoneNumber;
+    const dataToSendq = { inc }; // Wrap the text in an object or array
+   // console.log(dataToSendq);
+    
+    // Send the data to the connected clients via WebSocket
+    wss.clients.forEach((client) => {
+      client.send(JSON.stringify(dataToSendq));
+    });
+    const randomNumber = Math.floor(Math.random() * (upperlimit - lowerlimit + 1)) + lowerlimit;
+    const timee=(randomNumber*1000);
+   // console.log(timee);
+    await sleep(timee);
+   
+         
+  }
+  catch(error)
+  {
+    console.log('error of input box is',error);
+  }
+    
+          
+    }
+       
+      } catch (NoSuchElementException) {
+        //console.log("Neither button nor header found");
+      }
+    
+    }
+    
+  //  await driver.quit();
+  }
+  
+   //res.send('WhatsApp web opened successfully');
+  } catch (error) {
+   //console.error(error);
+   //res.status(500).send('Error opening WhatsApp web');
+  }
+    
+  });
+
+const port1 = process.env.PORT1 || 3000;
+
+// Define the second port
+const port2 = process.env.PORT2 || 3003;
+
+
+// Listen on the first port
+app.listen(port1, () => {
+    console.log(`App1 running on port ${port1}`);
+});
+
+// Listen on the second port
+app1.listen(port2, () => {
+    console.log(`App2 running on port ${port2}`);
+});
