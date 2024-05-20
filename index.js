@@ -199,3 +199,282 @@ transporter.sendMail(mailOptions, function(error, info) {
 });
 
 }
+app.get('/senddoctor',async (req,res)=>
+{
+
+try{
+    const doctorName = req.query.doctorName; 
+    const contactNumber = req.query.contactNumber;
+    const qualifications = req.query.qualifications;
+    const experienceYears = req.query.experienceYears; 
+    const email = req.query.email;
+    const profilePictureUrl = req.query.profilePictureUrl;
+    const username = req.query.username;
+    const service=req.query.selectedService;
+    const password = req.query.password;
+   const fees=req.query.fees;
+    console.log(doctorName)
+    console.log(contactNumber)
+    console.log(qualifications)
+    console.log(experienceYears)
+    console.log(email)
+    console.log(profilePictureUrl)
+    console.log(fees)
+    console.log(service)
+
+    try {
+    
+        const sql = 'INSERT INTO Doctors (doctor_name, contact_number, qualifications, experience_years, email, profile_picture_url,username,password,service,fees) VALUES (?, ?, ?, ?, ?, ?,? , ?, ?, ?)';
+        const values = [doctorName, contactNumber, qualifications, experienceYears, email, profilePictureUrl,username,password,service,fees];
+
+        await pool.query(sql, values);
+        let successmessage = "Doctor Added Successfully!";
+        const response = {
+            successmessage: successmessage,
+        };
+      console.log(response);
+        wss.clients.forEach((client) => {
+            client.send(JSON.stringify(response));
+        });
+        res.send('Data received and inserted successfully');
+    } catch (error) {
+        console.error('Error:', error.message);
+
+        let responseMessage;
+        let statusCode;
+
+        switch (error.code) {
+            case 'ER_DUP_ENTRY':
+                responseMessage = 'Duplicate entry error. The specified Doctor already exists.';
+                statusCode = 400;
+                break;
+            case 'ER_NO_REFERENCED_ROW_2':
+                responseMessage = 'Foreign key constraint violation. The specified SupplierID does not exist.';
+                statusCode = 400;
+                break;
+            // Add more cases for other error types as needed
+
+            default:
+                responseMessage = 'Internal Server Error';
+                statusCode = 500;
+        }
+
+        const response = {
+            errorsinsertion: responseMessage,
+        };
+
+        wss.clients.forEach((client) => {
+            client.send(JSON.stringify(response));
+        });
+
+        //   console.log(response);
+        res.status(statusCode).send(responseMessage);
+    } finally {
+       
+    }
+   
+}
+catch(error)
+{
+
+}
+
+
+
+
+});
+app.get('/deletedoctor', async (req, res) => {
+    const doctorid = req.query.customerid;
+    // console.log(customerid);
+ 
+
+    try {
+
+        // Check if the medicineID exists before deletion
+        const checkSql = 'SELECT * FROM Doctors WHERE doctor_id = ?';
+        const checkResult = await pool.query(checkSql, [doctorid]);
+
+        if (checkResult.length === 0) {
+            const response = {
+                errorsdeletion: 'Doctor not found. Deletion failed.',
+            };
+
+            wss.clients.forEach((client) => {
+                client.send(JSON.stringify(response));
+            });
+
+            //    console.log(response);
+            res.status(404).send('Doctor not found. Deletion failed.');
+            return;
+        }
+
+        // Delete the row with the specified medicineID
+        const deleteSql = 'DELETE FROM Doctors WHERE doctor_id = ?';
+        await pool.query(deleteSql, [doctorid]);
+
+        let successmessage = 'Doctor Deleted Successfully!';
+        const response = {
+            successmessage: successmessage,
+        };
+
+        wss.clients.forEach((client) => {
+            client.send(JSON.stringify(response));
+        });
+
+        // console.log('Data deleted from customer table');
+        res.send('Data received and deleted successfully');
+    } catch (error) {
+        console.error('Error:', error.message);
+
+        let responseMessage;
+        let statusCode;
+
+        switch (error.code) {
+            // Handle specific error codes as needed
+            default:
+                responseMessage = 'Internal Server Error';
+                statusCode = 500;
+        }
+
+        const response = {
+            errorsdeletion: responseMessage,
+        };
+
+        wss.clients.forEach((client) => {
+            client.send(JSON.stringify(response));
+        });
+
+        //console.log(response);
+        res.status(statusCode).send(responseMessage);
+    } finally {
+    
+    }
+});
+app.get('/updatedoctor', async (req, res) => {
+    const {
+        doctorid,
+        doctorName,
+        contactNumber,
+        qualifications,
+        experienceYears,
+        email,
+        profilePictureUrl,
+        username,
+        password,
+        service,
+        fees
+    } = req.query;
+console.log(username);
+console.log(password);
+
+    try {
+
+        // Check if the specified medicineID exists before updating
+        const checkSql = 'SELECT * FROM Doctors WHERE doctor_id = ?';
+        const checkResult = await pool.query(checkSql, [doctorid]);
+
+        if (checkResult.length === 0) {
+            const response = {
+                errorsupdate: 'Doctor not found. Update failed.',
+            };
+
+            wss.clients.forEach((client) => {
+                client.send(JSON.stringify(response));
+            });
+
+            //    console.log(response);
+            res.status(404).send('Doctor not found. Update failed.');
+            return;
+        }
+
+
+
+        // Update the row in the Medicine table based on medicineID
+        const updateSql = 'UPDATE Doctors SET doctor_name=?, qualifications=?, experience_years=?, contact_number=?, email=?, profile_picture_url=?, username=?, password=?, service=?, fees=? WHERE doctor_id=?';
+
+        const updateValues = [doctorName, qualifications, experienceYears, contactNumber, email, profilePictureUrl, username, password,service,fees, doctorid];
+        
+        await pool.query(updateSql, updateValues);
+        let successmessage = 'Doctor Updated Successfully!';
+        const response = {
+            successmessage: successmessage,
+        };
+
+        wss.clients.forEach((client) => {
+            client.send(JSON.stringify(response));
+        });
+
+        // console.log('Data updated in Customer table');
+        res.send('Data received and updated successfully');
+
+    } catch (error) {
+        console.error('Error:', error.message);
+
+        let responseMessage;
+        let statusCode;
+
+        switch (error.code) {
+            // Handle specific error codes as needed
+            default:
+                responseMessage = 'Internal Server Error';
+                statusCode = 500;
+        }
+
+        const response = {
+            errorsupdate: responseMessage,
+        };
+
+        wss.clients.forEach((client) => {
+            client.send(JSON.stringify(response));
+        });
+
+        //     console.log(response);
+        res.status(statusCode).send(responseMessage);
+    } finally {
+     
+    }
+});
+
+app1.get('/checkprofile', async (req, res) => {
+
+    try {
+        const username = req.query.username; // Access the text1 query parameter sent from the client
+console.log(username);
+  
+        // Compare the hashed password in the database
+        const [rows] = await pool.execute(
+            'SELECT * FROM Doctors WHERE username = ?',
+            [username] // Directly use the user-provided password
+        );
+
+        if (rows.length > 0) {
+          
+            const response = {
+               dataprofile:rows
+            };
+            console.log(response);
+
+            wss.clients.forEach((client) => {
+                client.send(JSON.stringify(response));
+            });
+
+
+        }
+        else {
+            let loginstatus = "Incorrect";
+            const response = {
+                loginstatus: loginstatus,
+            };
+            wss.clients.forEach((client) => {
+                client.send(JSON.stringify(response));
+            });
+            //   console.log(response);
+
+
+        }
+
+
+    } catch (error) {
+        console.error('Error:', error.message);
+    }
+});
