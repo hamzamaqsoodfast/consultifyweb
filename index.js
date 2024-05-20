@@ -757,3 +757,46 @@ console.log(appointments)
         res.status(500).send('Internal server error');
     }
 });
+app1.get('/getclientdata', async (req, res) => {
+
+    try {
+        const email = req.query.email; // Access the text1 query parameter sent from the client
+console.log(email);
+  
+        // Compare the hashed password in the database
+        const [rows] = await pool.execute(
+            'SELECT * FROM patients WHERE email = ?',
+            [email] // Directly use the user-provided password
+        );
+
+        if (rows.length > 0) {
+          
+            const response = {
+               patientprofile:rows
+            };
+            console.log(response);
+             res.json(response);
+            wss.clients.forEach((client) => {
+                client.send(JSON.stringify(response));
+            });
+
+
+        }
+        else {
+            let loginstatus = "doctornotexists";
+            const response = {
+                loginstatus: loginstatus,
+            };
+            wss.clients.forEach((client) => {
+                client.send(JSON.stringify(response));
+            });
+             console.log(response);
+
+
+        }
+
+
+    } catch (error) {
+        console.error('Error:', error.message);
+    }
+});
