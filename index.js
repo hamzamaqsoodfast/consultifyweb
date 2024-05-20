@@ -1222,3 +1222,189 @@ app1.get('/cancelappointmentdoctor', async (req, res) => {
         }
     }
 });
+app1.get('/checkdoctoravail', async (req, res) => {
+    const doctorId = req.query.doctorid; 
+    const date = req.query.date;
+
+    try {
+        // Log for debugging purposes; consider removing in production for better performance
+        console.log(`Received availability check for doctorId: ${doctorId} on date: ${date}`);
+
+        // Fetch available time slots from the database
+        const [rows] = await pool.execute(
+            'SELECT slot FROM DoctorAvailability WHERE doctorId = ? AND dayOfWeek = DAYNAME(?) AND isAvailable = true AND isbooked = false',
+            [doctorId, date]
+        );
+
+        let response;
+        if (rows.length > 0) {
+            // Time slots are available
+            const timeSlots = rows.map(row => row.slot);
+            response = { availableTimeSlots: timeSlots };
+        } else {
+            // No available time slots
+            response = { availableTimeSlots: "no" };
+        }
+
+        // Send the response to the client
+        wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(response));
+            }
+        });
+
+        res.json(response); // Send response to HTTP client too
+    } catch (error) {
+        console.error('Database or server error:', error.message);
+        res.status(500).send('Internal server error'); // Send HTTP status 500 for internal server errors
+    }
+});
+app1.get('/savebooking', async (req, res) => {
+    // Extracting query parameters from the request
+    const { doctorid, fees, patientemail, date, timeslotappointment, drivelink, description, paymentmethod, transactionId } = req.query;
+
+    try {
+        // Log for debugging purposes; consider removing in production for better performance
+        console.log(`Received booking request: Doctor ID: ${doctorid}, Patient Email: ${patientemail}, Date: ${date}, Time Slot: ${timeslotappointment}, Drive Link: ${drivelink}`);
+
+        // Fetch the slot ID from the DoctorAvailability table
+        const [slotRows] = await pool.execute(
+            'SELECT id FROM DoctorAvailability WHERE doctorId = ? AND dayOfWeek = DAYNAME(?) AND slot = ? AND isAvailable = true AND isbooked = false',
+            [doctorid, date, timeslotappointment]
+        );
+
+        if (slotRows.length === 0) {
+            // Slot not available, send error response
+            return res.status(400).json({ error: "Slot not available" });
+        }
+
+        const slotId = slotRows[0].id;
+
+        // Update DoctorAvailability table to mark the slot as booked and unavailable
+        await pool.execute(
+            'UPDATE DoctorAvailability SET isAvailable = false, isbooked = true WHERE id = ?',
+            [slotId]
+        );
+
+        // Insert appointment data into the database
+        const appointmentInsertQuery = `
+            INSERT INTO Appointments (DoctorID, PatientEmail, SlotID, AppointmentDate, Status, DriveLink, Notes)
+            VALUES (?, ?, ?, ?, 'pending', ?, ?)
+        `;
+        await pool.execute(appointmentInsertQuery, [doctorid, patientemail, slotId, date, drivelink, description]);
+
+        // Fetch the AppointmentID for the newly inserted appointment
+        const [appointmentRows] = await pool.execute(
+            'SELECT AppointmentID FROM Appointments WHERE DoctorID = ? AND PatientEmail = ? AND SlotID = ?',
+            [doctorid, patientemail, slotId]
+        );
+
+        const appointmentID = appointmentRows[0].AppointmentID;
+
+        // Update the DoctorAvailability table with the AppointmentID
+        await pool.execute(
+            'UPDATE DoctorAvailability SET AppointmentID = ? WHERE id = ?',
+            [appointmentID, slotId]
+        );
+
+        // Insert payment details into the Payments table
+        const paymentInsertQuery = `
+            INSERT INTO Payments (AppointmentID, PatientEmail, Amount, Method, TransactionID, PaymentStatus, DateOfPayment)
+            VALUES (?, ?, ?, ?, ?, 'pending', NOW())
+        `;
+        await pool.execute(paymentInsertQuery, [appointmentID, patientemail, fees, paymentmethod, transactionId]);
+
+        // Send success response to the client
+        const response = { bookingdone: "Appointment booked successfully" };
+                // Fetching doctor's email
+                const [doctorEmailRows] = await pool.execute(
+                    'SELECT email FROM Doctors WHERE doctor_id = ?',
+                    [doctorid]
+                );
+        
+                const doctorEmail = doctorEmailRows[0].email;
+        
+        sendemailtoadmin();
+        sendemailtodoctor(doctorEmail);
+        wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(response));
+            }
+        });
+    } catch (error) {
+        console.error('Database or server error:', error.message);
+        res.status(500).send('Internal server error'); // Send HTTP status 500 for internal server errors
+    }
+});
+app.get('/sendclientlogin',async (req,res)=>
+    {
+    
+    try{
+        const username = req.query.username; // Access the text1 query parameter sent from the client
+        const password = req.query.password;
+        const phone = req.query.phone;
+        const email = req.query.email;
+    
+        try {
+        
+            const sql = 'INSERT INTO patients (username, password, email, phone) VALUES (?, ?, ?, ?)';
+            const values = [username, password, email, phone];
+            await pool.query(sql, values);
+            let successmessage = "Patient Added Successfully!";
+            const response = {
+                clientlogindone: successmessage,
+                patientusername:username,
+                patientphone:phone,
+                patientemail:email
+            };
+         console.log(response);
+            wss.clients.forEach((client) => {
+                client.send(JSON.stringify(response));
+            });
+            res.send('Data received and inserted successfully');
+        } catch (error) {
+            console.error('Error:', error.message);
+    
+            let responseMessage;
+            let statusCode;
+    
+            switch (error.code) {
+                case 'ER_DUP_ENTRY':
+                    responseMessage = 'already';
+                    statusCode = 400;
+                    break;
+                case 'ER_NO_REFERENCED_ROW_2':
+                    responseMessage = 'Foreign key constraint violation. The specified Patientid does not exist.';
+                    statusCode = 400;
+                    break;
+                // Add more cases for other error types as needed
+    
+                default:
+                    responseMessage = 'Internal Server Error';
+                    statusCode = 500;
+            }
+    
+            const response = {
+                errorclientinsertion: responseMessage,
+            };
+            console.log(response);
+            wss.clients.forEach((client) => {
+                client.send(JSON.stringify(response));
+            });
+    
+            //   console.log(response);
+            res.status(statusCode).send(responseMessage);
+        } finally {
+           
+        }
+       
+    }
+    catch(error)
+    {
+    
+    }
+    
+    
+    
+    
+    });
